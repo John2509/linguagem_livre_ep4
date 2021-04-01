@@ -3,8 +3,8 @@ defmodule LinguagemLivreTest do
   doctest LinguagemLivre
 
   test "normalize" do
-    non_terminal = [?E, ?T, ?F]
-    terminal = [?(, ?), ?i, ?+, ?*]
+    non_terminal = [?E, ?F, ?T]
+    terminal = [?(, ?), ?*, ?+, ?i]
     production = MapSet.new([
       %{
         alpha: ?E,
@@ -39,20 +39,20 @@ defmodule LinguagemLivreTest do
       start: start
     }
     test0_non_terminal = [
-      ?I, ?H, ?G, ?E, ?T, ?F, ?D, ?C, ?B, ?A
+      ?A, ?B, ?C, ?D, ?E, ?F, ?G, ?H, ?I, ?T
     ]
     test0_production = MapSet.new([
-      %{alpha: ?C, beta: [?+] },
-      %{alpha: ?D, beta: [?*] },
       %{alpha: ?A, beta: [?(] },
       %{alpha: ?B, beta: [?)] },
-      %{alpha: ?T, beta: [?i] },
+      %{alpha: ?C, beta: [?*] },
+      %{alpha: ?D, beta: [?+] },
       %{alpha: ?E, beta: [?E, ?G] },
       %{alpha: ?E, beta: [?E, ?H] },
-      %{alpha: ?G, beta: [?C, ?E] },
-      %{alpha: ?H, beta: [?D, ?T] },
+      %{alpha: ?G, beta: [?C, ?T] },
+      %{alpha: ?H, beta: [?D, ?E] },
       %{alpha: ?I, beta: [?E, ?B] },
-      %{alpha: ?T, beta: [?A, ?I] }
+      %{alpha: ?T, beta: [?A, ?I] },
+      %{alpha: ?T, beta: [?i] }
     ])
     test0 = %LinguagemLivre{
       non_terminal: test0_non_terminal,
