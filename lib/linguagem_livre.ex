@@ -23,7 +23,7 @@ defmodule LinguagemLivre do
     p3 = substitute(p1, p2)
 
     # criar símbolos intermediários
-    %{symbols: nin, new_rules: p4} = create_intermidiate_rules(n ++ nn ++ t, p3)
+    %{symbols: nin, new_rules: p4} = create_intermidiate_rules(n ++ nn, t, p3)
 
     # substituir
     p5 = substitute(p3, p4)
@@ -111,14 +111,14 @@ defmodule LinguagemLivre do
     end)
   end
 
-  def create_intermidiate_rules(v, p) do
+  def create_intermidiate_rules(n, t, p) do
     to_process = Enum.filter(p, fn(rule) ->
       length(rule.beta) > 2
     end)
-    Enum.reduce(to_process, %{symbols: v, new_rules: MapSet.new()}, fn(rule, acc) ->
-      symbol = find_available_symbol(?A, acc.symbols)
+    Enum.reduce(to_process, %{symbols: n, new_rules: MapSet.new()}, fn(rule, acc) ->
+      symbol = find_available_symbol(?A, acc.symbols ++ t)
       %{
-        symbol: [symbol | acc.symbols],
+        symbols: [symbol | acc.symbols],
         new_rules: MapSet.put(acc.new_rules, %{
           alpha: symbol,
           beta: Enum.take(rule.beta, -2)
