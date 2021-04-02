@@ -38,52 +38,41 @@ defmodule LinguagemLivre do
   end
 
   def delete_unit_symbols(n, p) do
-    unit_production = Enum.reduce(p, MapSet.new(), fn(rule, acc) ->
-      if (
-        Enum.member?(n, rule.alpha) and
-        length(rule.beta) == 1 and
-        Enum.member?(n, List.first(rule.beta))
-      ) do
-        MapSet.put(acc, rule)
-      else
-        acc
-      end
-    end)
-    if not (unit_production == MapSet.new()) do
-      _alphas = Enum.reduce(unit_production, [], fn (rule, acc) ->
-        [rule.alpha | acc]
+    unit_production = Enum.filter(p, fn(rule) ->
+      Enum.member?(n, rule.alpha) and length(rule.beta) == 1 and Enum.member?(n, List.first(rule.beta))
+    end) |> MapSet.new
+    if not (MapSet.size(unit_production) == 0) do
+      betas = Enum.map(unit_production, fn(rule) ->
+        List.first(rule.beta)
       end)
-      betas = Enum.reduce(unit_production, [], fn (rule, acc) ->
-        [List.first(rule.beta) | acc]
-      end)
-      Enum.reduce(p, MapSet.new(), fn(rule, acc) ->
-        if not Enum.member?(unit_production, rule) do
-          new_alpha = if Enum.member?(betas, rule.alpha) do
-            unit_rule = Enum.find(unit_production, nil, fn(unit) ->
-              List.first(unit.beta) == rule.alpha
-            end)
-            unit_rule.alpha
-          else
-            rule.alpha
-          end
-          new_beta = if length(rule.beta) > length(rule.beta -- betas) do
-            Enum.reduce(rule.beta, rule.beta, fn(char, acc) ->
-              unit_rule = Enum.find(unit_production, %{alpha: rule.alpha, beta: [rule.alpha]}, fn(unit) ->
-                List.first(unit.beta) == char
-              end)
-              String.to_charlist(String.replace(List.to_string(acc), List.to_string(unit_rule.beta), List.to_string([unit_rule.alpha])))
-            end)
-          else
-            rule.beta
-          end
-          MapSet.put(acc, %{
-            alpha: new_alpha,
-            beta: new_beta
-          })
+
+      Enum.filter(p, fn(rule) ->
+        not Enum.member?(unit_production, rule)
+      end) |>
+      Enum.map(fn(rule) ->
+        new_alpha = if Enum.member?(betas, rule.alpha) do
+          unit_rule = Enum.find(unit_production, nil, fn(unit) ->
+            List.first(unit.beta) == rule.alpha
+          end)
+          unit_rule.alpha
         else
-          acc
+          rule.alpha
         end
-      end)
+        new_beta = if length(rule.beta) > length(rule.beta -- betas) do
+          Enum.reduce(rule.beta, rule.beta, fn(char, acc) ->
+            unit_rule = Enum.find(unit_production, %{alpha: rule.alpha, beta: [rule.alpha]}, fn(unit) ->
+              List.first(unit.beta) == char
+            end)
+            String.to_charlist(String.replace(List.to_string(acc), List.to_string(unit_rule.beta), List.to_string([unit_rule.alpha])))
+          end)
+        else
+          rule.beta
+        end
+        %{
+          alpha: new_alpha,
+          beta: new_beta
+        }
+      end) |> MapSet.new
     else
       p
     end
@@ -95,11 +84,7 @@ defmodule LinguagemLivre do
         length(rule.beta) == 1 and List.first(rule.beta) == symbol
       end)
     end)
-    initial = %{
-      new_symbols: [],
-      new_rules: MapSet.new()
-    }
-    Enum.reduce(terminal_without_rule, initial, fn (symbol, %{new_symbols: ns, new_rules: nr}) ->
+    Enum.reduce(terminal_without_rule, %{new_symbols: [], new_rules: MapSet.new()}, fn (symbol, %{new_symbols: ns, new_rules: nr}) ->
       new_non_terminal = find_available_symbol(?A, n ++ t ++ ns)
       %{
         new_symbols: [new_non_terminal | ns],
@@ -112,10 +97,10 @@ defmodule LinguagemLivre do
   end
 
   def create_intermidiate_rules(v, p) do
-    to_process = Enum.filter(p, fn(rule) ->
+    Enum.filter(p, fn(rule) ->
       length(rule.beta) > 2
     end)
-    Enum.reduce(to_process, %{new_symbols: [], new_rules: MapSet.new()}, fn(rule, acc) ->
+    |> Enum.reduce(%{new_symbols: [], new_rules: MapSet.new()}, fn(rule, acc) ->
       symbol = find_available_symbol(?A, acc.new_symbols ++ v)
       %{
         new_symbols: [symbol | acc.new_symbols],
@@ -132,7 +117,7 @@ defmodule LinguagemLivre do
   end
 
   def substitute(old_rules, new_rules) do
-    updated_old_rule = Enum.map(old_rules, fn %{alpha: alpha, beta: beta} ->
+    Enum.map(old_rules, fn %{alpha: alpha, beta: beta} ->
       new_beta = Enum.reduce(new_rules, beta, fn (new_rule, partial_beta) ->
         if Enum.all?(new_rule.beta, &(&1 in partial_beta)) do
           String.replace(List.to_string(partial_beta), List.to_string(new_rule.beta), List.to_string([new_rule.alpha])) |> String.to_charlist
@@ -144,7 +129,6 @@ defmodule LinguagemLivre do
         alpha: alpha,
         beta: new_beta
       }
-    end)
-    MapSet.union(MapSet.new(updated_old_rule), new_rules)
+    end) |> MapSet.new |> MapSet.union(new_rules)
   end
 end
