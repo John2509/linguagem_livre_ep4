@@ -23,18 +23,26 @@ defmodule LinguagemLivre do
     p3 = substitute(p1, p2)
 
     # criar símbolos intermediários
-    %{new_symbols: nin, new_rules: p4} = create_intermidiate_rules(n ++ nn ++ t, p3)
-
-    # substituir
-    p5 = substitute(p3, p4)
+    %{new_symbols: nin, new_rules: p4} = create_intermidiate_rules_loop(n ++ nn ++ t, p3, '')
 
     # gramática final
     %LinguagemLivre{
       non_terminal: Enum.sort(n ++ nn ++ nin),
       terminal: Enum.sort(t),
-      production: p5,
+      production: p4,
       start: s
     }
+  end
+
+  def create_intermidiate_rules_loop(v, p, new_symbols) do
+    if Enum.any?(p, fn(rule) -> length(rule.beta) > 2 end) do
+      %{new_symbols: ns, new_rules: np} = create_intermidiate_rules(v ++ new_symbols, p)
+      # substituir
+      pf = substitute(p, np)
+      create_intermidiate_rules_loop(v, pf, ns ++ new_symbols)
+    else
+      %{new_symbols: new_symbols, new_rules: p}
+    end
   end
 
   def delete_unit_symbols(n, p) do
