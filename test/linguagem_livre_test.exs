@@ -2,7 +2,7 @@ defmodule LinguagemLivreTest do
   use ExUnit.Case
   doctest LinguagemLivre
   #'''
-  test "Normalize" do
+  test "Normalize 1" do
     non_terminal = [?E, ?F, ?T]
     terminal = [?(, ?), ?*, ?+, ?i]
     production = MapSet.new([
@@ -69,7 +69,54 @@ defmodule LinguagemLivreTest do
   end
   #'''
   #'''
-  test "Check if word belongs" do
+  test "Normalize 2" do
+    non_terminal = [?S, ?A, ?B]
+    terminal = [?a, ?b, ?c]
+    production = MapSet.new([
+      %{
+        alpha: ?S,
+        beta: [?A, ?B, ?a]
+      },
+      %{
+        alpha: ?A,
+        beta: [?a, ?a, ?b]
+      },
+      %{
+        alpha: ?B,
+        beta: [?A, ?c]
+      }
+    ])
+    start = ?S
+    grammar = %LinguagemLivre{
+      non_terminal: non_terminal,
+      terminal: terminal,
+      production: production,
+      start: start
+    }
+    test0_non_terminal = [
+      ?A, ?B, ?C, ?D, ?E, ?F, ?G, ?S
+    ]
+    test0_production = MapSet.new([
+      %{alpha: ?C, beta: [?a] },
+      %{alpha: ?D, beta: [?b] },
+      %{alpha: ?E, beta: [?c] },
+      %{alpha: ?A, beta: [?C, ?F] },
+      %{alpha: ?B, beta: [?A, ?E] },
+      %{alpha: ?F, beta: [?C, ?D] },
+      %{alpha: ?G, beta: [?B, ?C] },
+      %{alpha: ?S, beta: [?A, ?G] }
+    ])
+    test0 = %LinguagemLivre{
+      non_terminal: test0_non_terminal,
+      terminal: terminal,
+      production: test0_production,
+      start: start
+    }
+    assert LinguagemLivre.normalize(grammar) == test0
+  end
+  #'''
+  #'''
+  test "Check if word belongs 1" do
     non_terminal = [?S, ?T,]
     terminal = [?(, ?)]
     production = MapSet.new([
@@ -99,6 +146,43 @@ defmodule LinguagemLivreTest do
     }
     assert LinguagemLivre.belongs_to_grammar('(()(()))', grammar) == true
     assert LinguagemLivre.belongs_to_grammar('(()))((())', grammar) == false
+  end
+  #'''
+  #'''
+  test "Check if word belongs 2" do
+    non_terminal = [?S, ?A, ?B]
+    terminal = [?a, ?b]
+    production = MapSet.new([
+      %{
+        alpha: ?S,
+        beta: [?A, ?B]
+      },
+      %{
+        alpha: ?A,
+        beta: [?B, ?B]
+      },
+      %{
+        alpha: ?B,
+        beta: [?A, ?B]
+      },
+      %{
+        alpha: ?A,
+        beta: [?a]
+      },
+      %{
+        alpha: ?B,
+        beta: [?b]
+      }
+    ])
+    start = ?S
+    grammar = %LinguagemLivre{
+      non_terminal: non_terminal,
+      terminal: terminal,
+      production: production,
+      start: start
+    }
+    assert LinguagemLivre.belongs_to_grammar('aabbb', grammar) == true
+    assert LinguagemLivre.belongs_to_grammar('ababa', grammar) == false
   end
   #'''
   #'''
@@ -240,7 +324,7 @@ defmodule LinguagemLivreTest do
     assert LinguagemLivre.normalize(grammar) == test0
   end
   #'''
-  '''
+  #'''
   test "Remove useless production rules" do
     non_terminal = [?S, ?A, ?B, ?C]
     terminal = [?a, ?b]
@@ -286,8 +370,7 @@ defmodule LinguagemLivreTest do
     test0_production = MapSet.new([
       %{alpha: ?A, beta: [?a] },
       %{alpha: ?S, beta: [?a] },
-      %{alpha: ?S, beta: [?B, ?A] },
-      %{alpha: ?S, beta: [?B, ?A] },
+      %{alpha: ?S, beta: [?A, ?S] },
     ])
     test0 = %LinguagemLivre{
       non_terminal: test0_non_terminal,
@@ -297,6 +380,6 @@ defmodule LinguagemLivreTest do
     }
     assert LinguagemLivre.normalize(grammar) == test0
   end
-  '''
+  #'''
 
 end

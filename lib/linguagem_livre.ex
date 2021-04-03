@@ -46,6 +46,7 @@ defmodule LinguagemLivre do
   end
 
   def clear_rules(n, t, p, s) do
+    #IO.inspect(p)
     # eliminar regras de produção de epsilon
     p1 = delete_E_symbols_loop(p)
     #IO.inspect(p1)
@@ -123,7 +124,7 @@ defmodule LinguagemLivre do
   def delete_unreachable_loop(n, t, p, s) do
     usefuls = get_usefuls_loop(p, MapSet.new(t))
     p1 = Enum.filter(p, fn (rule) ->
-      rule.alpha in usefuls and Enum.any?(rule.beta, &(&1 in usefuls))
+      rule.alpha in usefuls and Enum.all?(rule.beta, &(&1 in usefuls))
     end)
     p2 = Enum.filter(p1, fn(rule) ->
       rule.alpha == s or Enum.any?(p1, &(rule.alpha in &1.beta))
