@@ -13,25 +13,18 @@ defmodule LinguagemLivre do
 
   @spec normalize(LinguagemLivre.t) :: LinguagemLivre.t
   def normalize(%{non_terminal: n, terminal: t, production: p, start: s}) do
-    #IO.inspect(p)
 
     # limpar entrada
     %{non_terminal: n1, terminal: t1, production: p1} = clear_rules(n, t, p, s)
-    #IO.inspect(n1)
-    #IO.inspect(t1)
-    #IO.inspect(p1)
 
     # criar simbolos não terminais que vão pra terminais
     %{new_symbols: n2, new_rules: p2} = create_new_non_terminal_rules(n1, t1)
-    #IO.inspect(p2)
 
     # substituir
     p3 = substitute(t1, p1, p2)
-    #IO.inspect(p3)
 
     # criar símbolos intermediários
     %{new_symbols: n3, new_rules: p4} = create_intermidiate_rules_loop(n1 ++ n2, t1, p3, '')
-    #IO.inspect(p4)
 
     # limpeza final
     %{non_terminal: n4, terminal: t2, production: p5} = clear_rules(n1 ++ n2 ++ n3, t1, p4, s)
@@ -42,20 +35,19 @@ defmodule LinguagemLivre do
       terminal: Enum.sort(t2),
       production: p5,
       start: s
-    } #|> IO.inspect
+    }
   end
 
   def clear_rules(n, t, p, s) do
-    #IO.inspect(p)
     # eliminar regras de produção de epsilon
     p1 = delete_E_symbols_loop(p)
-    #IO.inspect(p1)
+
     # eliminar símbolos únicos
     p2 = delete_unit_symbols_loop(n, p1)
-    #IO.inspect(p2)
+
     # eliminar símbolos inalcansáveis
     p3 = delete_unreachable_loop(n, t, p2, s)
-    #IO.inspect(p3)
+
     # limpar símbolos não mais utilizados
     %{
       non_terminal: Enum.filter(n, fn(symbol) ->
@@ -227,40 +219,40 @@ defmodule LinguagemLivre do
   end
 
   def calculate_word(word, l = %{production: p}, memory) do
-    if Map.has_key?(memory, word) do # word was already calculated
+    if Map.has_key?(memory, word) do # palavra já foi calculada
       memory
     else
       if length(word) > 1 do
 
         prefix_suffix = 1..(length(word) - 1) |>
-        Enum.map(&(Enum.split(word, &1)))
+        Enum.map(&(Enum.split(word, &1))) # lista de pares prefixo/sufixo para a palavra
 
         new_memory = Enum.reduce(prefix_suffix, memory, fn ({prefix, suffix}, partial_memory) ->
           partial_memory1 = calculate_word(prefix, l, partial_memory)
           calculate_word(suffix, l, partial_memory1)
-        end)
+        end) # calcula a memoria de todos os prefixos e sufixos antes
 
-        possible_alphas = prefix_suffix |>
+        possible_alphas = prefix_suffix |> # para cada par prefixo/sufixo
         Enum.map(fn ({prefix, suffix}) ->
           {Map.get(new_memory, prefix), Map.get(new_memory, suffix)}
-        end) |>
+        end) |> # obtem as formas de gerar os prefixos e sufixos
         Enum.filter(fn ({preList, sufList}) ->
           length(preList) > 0 and length(sufList) > 0
-        end) |>
+        end) |> # remove aqueles que não tem forma de serem gerados
         Enum.map(fn ({preList, sufList}) ->
           Enum.map(preList, fn (symbol) ->
             Enum.map(sufList, &([symbol, &1]))
           end)
-        end) |>
+        end) |> # obtem-se as combinações de origem prefixo/ origem sufixo
         Enum.map(fn (possible_beta_list_list) ->
           Enum.map(possible_beta_list_list, fn (possible_beta_list) ->
             Enum.map(possible_beta_list, fn (possible_beta) ->
               Enum.filter(p, &(&1.beta == possible_beta)) |> Enum.map(&(&1.alpha))
             end)
           end)
-        end) |>
+        end) |> # calcula-se quais dessas combinações tem por si só origens
         List.flatten |>
-        Enum.uniq
+        Enum.uniq # remove-se valores reptidos
 
         Map.put(new_memory, word, possible_alphas)
       else
