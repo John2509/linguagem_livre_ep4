@@ -16,33 +16,36 @@ defmodule LinguagemLivre do
     #IO.inspect(p)
 
     # limpar entrada
-    %{non_terminal: n1, terminal: t1, production: p1} = clear_initial_rules(n, t, p, s)
+    %{non_terminal: n1, terminal: t1, production: p1} = clear_rules(n, t, p, s)
     #IO.inspect(n1)
     #IO.inspect(t1)
     #IO.inspect(p1)
 
     # criar simbolos não terminais que vão pra terminais
-    %{new_symbols: n2, new_rules: p2} = create_new_non_terminal_rules(n1, t1, p1)
+    %{new_symbols: n2, new_rules: p2} = create_new_non_terminal_rules(n1, t1)
     #IO.inspect(p2)
 
     # substituir
-    p3 = substitute(p1, p2)
+    p3 = substitute(t1, p1, p2)
     #IO.inspect(p3)
 
     # criar símbolos intermediários
-    %{new_symbols: n3, new_rules: p4} = create_intermidiate_rules_loop(n1 ++ n2 ++ t1, p3, '')
+    %{new_symbols: n3, new_rules: p4} = create_intermidiate_rules_loop(n1 ++ n2, t1, p3, '')
     #IO.inspect(p4)
+
+    # limpeza final
+    %{non_terminal: n4, terminal: t2, production: p5} = clear_rules(n1 ++ n2 ++ n3, t1, p4, s)
 
     # gramática final
     %LinguagemLivre{
-      non_terminal: Enum.sort(n1 ++ n2 ++ n3),
-      terminal: Enum.sort(t1),
-      production: p4,
+      non_terminal: Enum.sort(n4),
+      terminal: Enum.sort(t2),
+      production: p5,
       start: s
     } #|> IO.inspect
   end
 
-  def clear_initial_rules(n, t, p, s) do
+  def clear_rules(n, t, p, s) do
     # eliminar regras de produção de epsilon
     p1 = delete_E_symbols_loop(p)
     #IO.inspect(p1)
@@ -51,6 +54,7 @@ defmodule LinguagemLivre do
     #IO.inspect(p2)
     # eliminar símbolos inalcansáveis
     p3 = delete_unreachable_loop(n, t, p2, s)
+    #IO.inspect(p3)
     # limpar símbolos não mais utilizados
     %{
       non_terminal: Enum.filter(n, fn(symbol) ->
@@ -117,9 +121,9 @@ defmodule LinguagemLivre do
   end
 
   def delete_unreachable_loop(n, t, p, s) do
-    usefuls = get_usefuls_loop(t, p, MapSet.new())
+    usefuls = get_usefuls_loop(p, MapSet.new(t))
     p1 = Enum.filter(p, fn (rule) ->
-      rule.alpha in usefuls
+      rule.alpha in usefuls and Enum.any?(rule.beta, &(&1 in usefuls))
     end)
     p2 = Enum.filter(p1, fn(rule) ->
       rule.alpha == s or Enum.any?(p1, &(rule.alpha in &1.beta))
@@ -132,37 +136,34 @@ defmodule LinguagemLivre do
     end
   end
 
-  def get_usefuls_loop(t, p, result) do
+  def get_usefuls_loop(p, result) do
     useful_alphas = Enum.filter(p, fn(rule) ->
-      Enum.any?(rule.beta, &(&1 in t or &1 in result))
+      Enum.all?(rule.beta, &(&1 in result))
     end) |>
     Enum.map(fn (rule) ->
       rule.alpha
     end) |>
     MapSet.new
-    if (MapSet.equal?(useful_alphas, result)) do
+    if (MapSet.subset?(useful_alphas, result)) do
       result
     else
-      get_usefuls_loop(t, p, MapSet.union(useful_alphas, result))
+      get_usefuls_loop(p, MapSet.union(useful_alphas, result))
     end
   end
 
-  def create_intermidiate_rules_loop(v, p, new_symbols) do
+  def create_intermidiate_rules_loop(n, t, p, new_symbols) do
     if Enum.any?(p, fn(rule) -> length(rule.beta) > 2 end) do
-      %{new_symbols: ns, new_rules: np} = create_intermidiate_rules(v ++ new_symbols, p)
+      %{new_symbols: ns, new_rules: np} = create_intermidiate_rules(n ++ t ++ new_symbols, p)
       # substituir
-      pf = substitute(p, np)
-      create_intermidiate_rules_loop(v, pf, ns ++ new_symbols)
+      pf = substitute(t, p, np)
+      create_intermidiate_rules_loop(n, t, pf, ns ++ new_symbols)
     else
       %{new_symbols: new_symbols, new_rules: p}
     end
   end
 
-  def create_new_non_terminal_rules(n, t, p) do
-    Enum.filter(t, fn symbol ->
-      not Enum.any?(p, fn rule -> length(rule.beta) == 1 and List.first(rule.beta) == symbol end)
-    end) |>
-    Enum.reduce(%{new_symbols: [], new_rules: MapSet.new()}, fn (symbol, %{new_symbols: ns, new_rules: nr}) ->
+  def create_new_non_terminal_rules(n, t) do
+    Enum.reduce(t, %{new_symbols: [], new_rules: MapSet.new()}, fn (symbol, %{new_symbols: ns, new_rules: nr}) ->
       new_non_terminal = find_available_symbol(?A, n ++ t ++ ns)
       %{
         new_symbols: [new_non_terminal | ns],
@@ -198,8 +199,11 @@ defmodule LinguagemLivre do
     if(symbol_to_try not in v, do: symbol_to_try, else: find_available_symbol(symbol_to_try+1, v))
   end
 
-  def substitute(old_rules, new_rules) do
-    Enum.map(old_rules, fn %{alpha: alpha, beta: beta} ->
+  def substitute(t, old_rules, new_rules) do
+    not_to_change = Enum.filter(old_rules, fn (rule) ->
+      length(rule.beta) == 1 and List.first(rule.beta) in t
+    end) |> MapSet.new
+    Enum.map(MapSet.difference(old_rules, not_to_change), fn %{alpha: alpha, beta: beta} ->
       new_beta = Enum.reduce(new_rules, beta, fn (new_rule, partial_beta) ->
         if Enum.all?(new_rule.beta, &(&1 in partial_beta)) do
           String.replace(List.to_string(partial_beta), List.to_string(new_rule.beta), List.to_string([new_rule.alpha])) |> String.to_charlist
@@ -211,7 +215,7 @@ defmodule LinguagemLivre do
         alpha: alpha,
         beta: new_beta
       }
-    end) |> MapSet.new |> MapSet.union(new_rules)
+    end) |> MapSet.new |> MapSet.union(new_rules) |> MapSet.union(not_to_change)
   end
 
   @spec belongs_to_grammar(charlist, LinguagemLivre.t) :: boolean
